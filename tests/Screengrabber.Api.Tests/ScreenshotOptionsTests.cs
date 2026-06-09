@@ -125,4 +125,36 @@ public class ScreenshotOptionsTests
         Assert.Equal("image/png",  ScreenshotOptions.Parse("/u/", null).ContentType);
         Assert.Equal("image/jpeg", ScreenshotOptions.Parse("/u/", "jpeg").ContentType);
     }
+
+    [Fact]
+    public void GetViewport_MediumOneOne_Is650x650()
+    {
+        var opts = ScreenshotOptions.Parse("/u/medium/1:1/", null);
+        Assert.Equal((650, 650), opts.GetViewport());
+    }
+
+    [Fact]
+    public void GetViewport_MediumNineSixteen_Is650x1156()
+    {
+        var opts = ScreenshotOptions.Parse("/u/medium/9:16/", null);
+        Assert.Equal((650, 1156), opts.GetViewport());
+    }
+
+    [Fact]
+    public void GetViewport_Large_IsAlways1024x1024()
+    {
+        Assert.Equal((1024, 1024), ScreenshotOptions.Parse("/u/large/1:1/", null).GetViewport());
+        Assert.Equal((1024, 1024), ScreenshotOptions.Parse("/u/large/9:16/", null).GetViewport());
+    }
+
+    [Fact]
+    public void ToPlaywrightWaitUntil_MapsCorrectly()
+    {
+        Assert.Equal(Microsoft.Playwright.WaitUntilState.DOMContentLoaded,
+            ScreenshotOptions.Parse("/u/_wait:0/", null).ToPlaywrightWaitUntil());
+        Assert.Equal(Microsoft.Playwright.WaitUntilState.Load,
+            ScreenshotOptions.Parse("/u/_wait:1/", null).ToPlaywrightWaitUntil());
+        Assert.Equal(Microsoft.Playwright.WaitUntilState.NetworkIdle,
+            ScreenshotOptions.Parse("/u/_wait:2/", null).ToPlaywrightWaitUntil());
+    }
 }
