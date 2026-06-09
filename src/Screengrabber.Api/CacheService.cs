@@ -15,7 +15,7 @@ public sealed class CacheService(IConnectionMultiplexer redis) : ICacheService
     public async Task<byte[]?> GetAsync(string key)
     {
         var value = await _db.StringGetAsync(key);
-        return value.HasValue ? (byte[])value! : null;
+        return (byte[]?)value;
     }
 
     public Task SetAsync(string key, byte[] value, TimeSpan ttl)

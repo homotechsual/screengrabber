@@ -13,7 +13,7 @@ public class CacheServiceTests
     public CacheServiceTests()
     {
         var multiplexer = Substitute.For<IConnectionMultiplexer>();
-        multiplexer.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(_db);
+        multiplexer.GetDatabase().Returns(_db);
         _cache = new CacheService(multiplexer);
     }
 
