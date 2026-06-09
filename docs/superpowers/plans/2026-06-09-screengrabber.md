@@ -15,7 +15,7 @@
 | File | Action | Responsibility |
 |---|---|---|
 | `Screengrabber.sln` | Create | Solution |
-| `src/Screengrabber.Api/Screengrabber.Api.csproj` | Create | Project file, net9.0 |
+| `src/Screengrabber.Api/Screengrabber.Api.csproj` | Create | Project file, net10.0 |
 | `src/Screengrabber.Api/Program.cs` | Create | DI wiring, middleware, route |
 | `src/Screengrabber.Api/ScreenshotOptions.cs` | Create | Parsed options record + path parser |
 | `src/Screengrabber.Api/ScreenshotService.cs` | Create | Playwright/Edge + SemaphoreSlim |
@@ -70,7 +70,7 @@ dotnet add tests/Screengrabber.Api.Tests package NSubstitute
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
