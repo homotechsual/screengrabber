@@ -38,7 +38,6 @@ public static class ScreenshotEndpoint
             bytes = await screenshotService.CaptureAsync(options);
         }
         catch (PlaywrightException ex) when (
-            ex.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase) ||
             ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
         {
             return Results.StatusCode(504);
