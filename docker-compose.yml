@@ -1,0 +1,31 @@
+services:
+  api:
+    image: ${SCREENGRABBER_IMAGE}
+    container_name: screengrabber-api
+    restart: unless-stopped
+    environment:
+      REDIS_CONNECTION: screengrabber-redis:6379
+      SCREENSHOT_CACHE_TTL_HOURS: ${SCREENSHOT_CACHE_TTL_HOURS:-24}
+      SCREENSHOT_CONCURRENCY: ${SCREENSHOT_CONCURRENCY:-4}
+      API_KEYS: ${API_KEYS:-}
+    networks:
+      - default
+      - proxy
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: screengrabber-redis
+    restart: unless-stopped
+    volumes:
+      - screengrabber-redis-data:/data
+    networks:
+      - default
+
+volumes:
+  screengrabber-redis-data:
+
+networks:
+  proxy:
+    external: true
