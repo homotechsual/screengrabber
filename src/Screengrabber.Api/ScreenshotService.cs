@@ -45,12 +45,15 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
 
     public async Task<byte[]> CaptureAsync(ScreenshotOptions options)
     {
+        if (_browser is null)
+            throw new InvalidOperationException("Browser is not ready.");
+
         await _semaphore.WaitAsync();
         try
         {
             var (width, height) = options.GetViewport();
 
-            await using var context = await _browser!.NewContextAsync(new()
+            await using var context = await _browser.NewContextAsync(new()
             {
                 ViewportSize      = new() { Width = width, Height = height },
                 DeviceScaleFactor = (float?)options.GetDeviceScaleFactor()
@@ -60,7 +63,7 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
 
             await page.GotoAsync(options.TargetUrl, new()
             {
-                Timeout   = (float?)((float)(options.TimeoutSeconds * 1000)),
+                Timeout   = options.TimeoutSeconds * 1000f,
                 WaitUntil = options.ToPlaywrightWaitUntil()
             });
 
