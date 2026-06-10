@@ -17,6 +17,7 @@ public class ScreenshotOptionsTests
         Assert.Equal(WaitLevel.Load, opts.WaitLevel);
         Assert.Equal(6, opts.TimeoutSeconds);
         Assert.Equal(ImageFormat.Png, opts.Format);
+        Assert.Null(opts.OutputWidth);
     }
 
     [Fact]
@@ -117,6 +118,14 @@ public class ScreenshotOptionsTests
     {
         var opts = ScreenshotOptions.Parse("/u/small/1:1/smaller/", null);
         Assert.Equal(0.71, opts.GetDeviceScaleFactor(), 2);
+    }
+
+    [Fact]
+    public void Parse_WidthToken_SetsOutputWidth()
+    {
+        Assert.Equal(650,  ScreenshotOptions.Parse("/u/_width:650/", null).OutputWidth);
+        Assert.Equal(1200, ScreenshotOptions.Parse("/u/_width:1200/", null).OutputWidth);
+        Assert.Null(       ScreenshotOptions.Parse("/u/", null).OutputWidth);
     }
 
     [Fact]

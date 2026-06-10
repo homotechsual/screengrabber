@@ -15,7 +15,8 @@ public record ScreenshotOptions(
     ZoomLevel Zoom,
     WaitLevel WaitLevel,
     int TimeoutSeconds,
-    ImageFormat Format)
+    ImageFormat Format,
+    int? OutputWidth)
 {
     public static ScreenshotOptions Parse(string rawPath, string? formatQuery)
     {
@@ -30,6 +31,7 @@ public record ScreenshotOptions(
         var zoom          = ZoomLevel.Normal;
         var waitLevel     = WaitLevel.Load;
         var timeoutSecs   = 6;
+        int? outputWidth  = null;
 
         foreach (var segment in segments.Skip(1))
         {
@@ -61,6 +63,12 @@ public record ScreenshotOptions(
                 {
                     timeoutSecs = Math.Clamp(t, 3, 9);
                 }
+                else if (token.StartsWith("width:", StringComparison.OrdinalIgnoreCase)
+                         && int.TryParse(token[6..], out var pw)
+                         && pw > 0)
+                {
+                    outputWidth = pw;
+                }
                 // other tokens (cache-bust strings) silently ignored
             }
         }
@@ -69,7 +77,7 @@ public record ScreenshotOptions(
             ? ImageFormat.Jpeg
             : ImageFormat.Png;
 
-        return new ScreenshotOptions(targetUrl, size, aspectRatio, zoom, waitLevel, timeoutSecs, format);
+        return new ScreenshotOptions(targetUrl, size, aspectRatio, zoom, waitLevel, timeoutSecs, format, outputWidth);
     }
 
     public (int Width, int Height) GetViewport() => (Size, AspectRatio) switch
