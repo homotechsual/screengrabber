@@ -1,0 +1,3 @@
+{$SCREENGRABBER_DOMAIN} {
+    reverse_proxy screengrabber-api:8080
+}

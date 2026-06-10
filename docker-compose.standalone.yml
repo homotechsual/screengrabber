@@ -1,0 +1,41 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: screengrabber-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - screengrabber-caddy-data:/data
+      - screengrabber-caddy-config:/config
+    environment:
+      SCREENGRABBER_DOMAIN: ${SCREENGRABBER_DOMAIN}
+    depends_on:
+      - api
+
+  api:
+    image: ${SCREENGRABBER_IMAGE}
+    container_name: screengrabber-api
+    restart: unless-stopped
+    environment:
+      REDIS_CONNECTION: screengrabber-redis:6379
+      SCREENSHOT_CACHE_TTL_HOURS: ${SCREENSHOT_CACHE_TTL_HOURS:-24}
+      SCREENSHOT_CONCURRENCY: ${SCREENSHOT_CONCURRENCY:-4}
+      API_KEYS: ${API_KEYS:-}
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: screengrabber-redis
+    restart: unless-stopped
+    volumes:
+      - screengrabber-redis-data:/data
+
+volumes:
+  screengrabber-redis-data:
+  screengrabber-caddy-data:
+  screengrabber-caddy-config:
