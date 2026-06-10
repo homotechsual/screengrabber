@@ -10,7 +10,8 @@ public static class ScreenshotEndpoint
         HttpContext context,
         IScreenshotService screenshotService,
         ICacheService cacheService,
-        IConfiguration config)
+        IConfiguration config,
+        ILogger<Program> logger)
     {
         // Use raw target to preserve %2F in the encoded URL segment
         var rawTarget = context.Features.Get<IHttpRequestFeature>()?.RawTarget
@@ -32,7 +33,9 @@ public static class ScreenshotEndpoint
             return Results.BadRequest("A URL is required: /{url}/{size}/{aspectratio}/{zoom}/");
 
         // Cache hit
-        var cached = await cacheService.GetAsync(cacheKey);
+        byte[]? cached = null;
+        try { cached = await cacheService.GetAsync(cacheKey); }
+        catch (Exception ex) { logger.LogWarning(ex, "Redis read failed for {Key}; capturing fresh.", cacheKey); }
         if (cached is not null)
             return Results.Bytes(cached, options.ContentType);
 
@@ -58,7 +61,8 @@ public static class ScreenshotEndpoint
 
         // Store and return
         var ttlHours = config.GetValue("SCREENSHOT_CACHE_TTL_HOURS", 24);
-        await cacheService.SetAsync(cacheKey, bytes, TimeSpan.FromHours(ttlHours));
+        try { await cacheService.SetAsync(cacheKey, bytes, TimeSpan.FromHours(ttlHours)); }
+        catch (Exception ex) { logger.LogWarning(ex, "Redis write failed for {Key}; returning uncached image.", cacheKey); }
 
         return Results.Bytes(bytes, options.ContentType);
     }
