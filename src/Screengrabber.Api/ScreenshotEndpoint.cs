@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Playwright;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace Screengrabber.Api;
 
@@ -67,13 +65,12 @@ public static class ScreenshotEndpoint
 
     private static byte[] Resize(byte[] input, int width, ImageFormat format)
     {
-        using var image = Image.Load(input);
-        image.Mutate(x => x.Resize(width, 0, KnownResamplers.Lanczos3));
-        using var ms = new MemoryStream();
-        if (format == ImageFormat.Jpeg)
-            image.SaveAsJpeg(ms, new JpegEncoder { Quality = 85 });
-        else
-            image.SaveAsPng(ms);
-        return ms.ToArray();
+        using var bmp = SKBitmap.Decode(input);
+        var height = (int)Math.Round((double)bmp.Height / bmp.Width * width);
+        using var scaled = bmp.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
+        using var image = SKImage.FromBitmap(scaled);
+        var skFormat = format == ImageFormat.Jpeg ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png;
+        using var data = image.Encode(skFormat, 85);
+        return data.ToArray();
     }
 }
