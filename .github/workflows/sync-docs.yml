@@ -1,0 +1,63 @@
+name: Sync Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/screengrabber/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-docs:
+    name: Sync docs to homotechsualdocs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout screengrabber
+        uses: actions/checkout@v6
+
+      - name: Clone and update homotechsualdocs
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git -c core.autocrlf=false clone \
+            https://x-access-token:$GH_TOKEN@github.com/homotechsual/homotechsualdocs.git \
+            docs-repo
+
+          cd docs-repo
+
+          git config core.autocrlf false
+          git remote set-url origin \
+            https://x-access-token:$GH_TOKEN@github.com/homotechsual/homotechsualdocs.git
+
+          git fetch origin main
+          git checkout -B main origin/main
+
+          # Verify write access before touching files
+          if ! git push --dry-run origin HEAD:main 2>/dev/null; then
+            echo "DOCS_REPO_TOKEN cannot push to homotechsual/homotechsualdocs:main" >&2
+            exit 1
+          fi
+
+          # Sync docs
+          rm -rf docs/screengrabber
+          mkdir -p docs/screengrabber
+          cp -r ../docs/screengrabber/. docs/screengrabber/
+
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No documentation changes to commit."
+            exit 0
+          fi
+
+          git add docs/screengrabber
+          git commit -m "Sync screengrabber docs from ${{ github.sha }}"
+          git push origin HEAD:main
+
+          echo "Documentation published to homotechsualdocs."
