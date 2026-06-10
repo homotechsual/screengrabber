@@ -26,6 +26,10 @@ public static class ScreenshotEndpoint
                        : rawPath;
         var options  = ScreenshotOptions.Parse(rawPath, format);
 
+        if (string.IsNullOrEmpty(options.TargetUrl) ||
+            !options.TargetUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest("A URL is required: /{url}/{size}/{aspectratio}/{zoom}/");
+
         // Cache hit
         var cached = await cacheService.GetAsync(cacheKey);
         if (cached is not null)
@@ -41,6 +45,11 @@ public static class ScreenshotEndpoint
             ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
         {
             return Results.StatusCode(504);
+        }
+        catch (PlaywrightException ex) when (
+            ex.Message.Contains("invalid url", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest("Invalid URL.");
         }
 
         // Store and return
