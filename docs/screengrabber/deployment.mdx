@@ -50,7 +50,7 @@ docker compose -f docker-compose.standalone.yml up -d
 ```
 
 :::note
-`screengrabber-caddy-data` is a named volume that persists Caddy's TLS certificate across container restarts. Do not delete this volume — Caddy will need to re-request a certificate if it is removed.
+`screengrabber-caddy-data` and `screengrabber-caddy-config` are named volumes used by Caddy. Do not delete `screengrabber-caddy-data` — it persists the TLS certificate and Caddy will need to re-request one if it is removed. `screengrabber-caddy-config` is a config cache and can be safely deleted if needed.
 :::
 
 ## Proxied (Docker)
@@ -67,9 +67,15 @@ Run this once on the host:
 docker network create proxy
 ```
 
-The network name `proxy` is the default used in `docker-compose.yml`. If your existing setup uses a different name, update the `networks` block in `docker-compose.yml` to match:
+The network name `proxy` is the default used in `docker-compose.yml`. If your existing setup uses a different name, update both the service-level `networks` list and the top-level `networks` block in `docker-compose.yml` to match:
 
 ```yaml
+services:
+  api:
+    networks:
+      - default
+      - your-network-name    # changed from proxy
+
 networks:
   your-network-name:
     external: true
@@ -125,6 +131,8 @@ docker compose up -d
 Use this when Nginx, Apache, Caddy, or similar is running directly on the host — not in Docker.
 
 ### Expose the API port
+
+Edit `docker-compose.yml` in your Screengrabber directory to add a port binding and remove the `proxy` network:
 
 The default `docker-compose.yml` does not publish any ports. Add a port binding to the `api` service so the host-level proxy can reach it. Binding to `127.0.0.1` keeps the port off the public network:
 
@@ -190,3 +198,5 @@ Then start the stack:
 ```bash
 docker compose up -d
 ```
+
+See the [Configuration](./configuration) reference for a full list of environment variables.
