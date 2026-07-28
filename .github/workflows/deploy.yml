@@ -102,11 +102,22 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     env:
-      SCREENGRABBER_IMAGE: ${{ needs.build-and-push.outputs.image_tag }}
       API_KEYS: ${{ secrets.API_KEYS }}
       SCREENSHOT_CACHE_TTL_HOURS: ${{ secrets.SCREENSHOT_CACHE_TTL_HOURS || '24' }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Resolve deployment image tag
+        id: image_ref
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            echo "image_tag=${DOCKERHUB_USERNAME}/screengrabber:latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tag=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up SSH
         run: |
@@ -123,6 +134,8 @@ jobs:
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
       - name: Write .env on server
+        env:
+          SCREENGRABBER_IMAGE: ${{ steps.image_ref.outputs.image_tag }}
         run: |
           {
             echo "SCREENGRABBER_IMAGE=$SCREENGRABBER_IMAGE"
