@@ -17,3 +17,7 @@ X-Api-Key: your-key
 dotnet build
 dotnet test
 ```
+
+## Container publishing
+
+The GitHub Actions workflow publishes the image to GitHub Container Registry by default. It can also publish to Docker Hub when the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are configured. The Docker Hub image name defaults to `screengrabber` under the configured Docker Hub username.
