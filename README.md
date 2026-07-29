@@ -3,7 +3,7 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/homotechsual/screengrabber/ci.yml?branch=main\&style=for-the-badge\&label=tests)](https://github.com/homotechsual/screengrabber/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/homotechsual/screengrabber?style=for-the-badge)](https://codecov.io/gh/homotechsual/screengrabber)
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fhomotechsual%2Fscreengrabber-2ea44f?style=for-the-badge\&logo=github)](https://ghcr.io/homotechsual/screengrabber)
-[![Docker Hub Version](https://img.shields.io/docker/v/homotechsual/screengrabber/latest?style=for-the-badge\&label=docker%20hub)](https://hub.docker.com/r/homotechsual/screengrabber)
+[![Docker Hub Version](https://img.shields.io/docker/v/homotechsual/screengrabber?sort=semver\&style=for-the-badge\&label=docker%20hub)](https://hub.docker.com/r/homotechsual/screengrabber)
 [![Docker Pulls](https://img.shields.io/docker/pulls/homotechsual/screengrabber?style=for-the-badge\&label=pulls)](https://hub.docker.com/r/homotechsual/screengrabber)
 
 Self-hosted screenshot API using Microsoft Edge via Playwright. Built with .NET 10, Redis caching, and Docker.
