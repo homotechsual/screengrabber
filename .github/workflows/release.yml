@@ -13,6 +13,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  DOCKERHUB_IMAGE: homotechsual/screengrabber
 
 jobs:
   test:
@@ -87,11 +88,17 @@ jobs:
 
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
             echo "dockerhub_enabled=true" >> "$GITHUB_OUTPUT"
-            echo "dockerhub=${DOCKERHUB_USERNAME}/screengrabber" >> "$GITHUB_OUTPUT"
+            echo "dockerhub=${DOCKERHUB_IMAGE}" >> "$GITHUB_OUTPUT"
           else
             echo "dockerhub_enabled=false" >> "$GITHUB_OUTPUT"
             echo "dockerhub=" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Require Docker Hub credentials for tagged releases
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.images.outputs.dockerhub_enabled != 'true' }}
+        run: |
+          echo "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN must be set for tagged releases."
+          exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

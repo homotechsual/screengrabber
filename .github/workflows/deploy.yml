@@ -7,6 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  DOCKERHUB_IMAGE: homotechsual/screengrabber
   DEPLOY_PATH: /opt/screengrabber
 
 jobs:
@@ -34,7 +35,7 @@ jobs:
         run: |
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "name=${DOCKERHUB_USERNAME}/screengrabber" >> "$GITHUB_OUTPUT"
+            echo "name=${DOCKERHUB_IMAGE}" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "name=" >> "$GITHUB_OUTPUT"
@@ -114,7 +115,7 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            echo "image_tag=${DOCKERHUB_USERNAME}/screengrabber:edge" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${DOCKERHUB_IMAGE}:edge" >> "$GITHUB_OUTPUT"
           else
             echo "image_tag=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):edge" >> "$GITHUB_OUTPUT"
           fi
