@@ -135,6 +135,7 @@ jobs:
 
       - name: Build and push release image to Docker Hub
         if: ${{ steps.images.outputs.dockerhub_enabled == 'true' }}
+        id: dockerhub_build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -143,12 +144,58 @@ jobs:
           push: true
           tags: |
             ${{ steps.images.outputs.dockerhub }}:${{ steps.version.outputs.version }}
-            ${{ steps.images.outputs.dockerhub }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
-            ${{ steps.images.outputs.dockerhub }}:${{ steps.version.outputs.major }}
-            ${{ steps.images.outputs.dockerhub }}:latest
-            ${{ steps.images.outputs.dockerhub }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Create Docker Hub release alias tags
+        if: ${{ steps.images.outputs.dockerhub_enabled == 'true' }}
+        env:
+          REPO: ${{ steps.images.outputs.dockerhub }}
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+          MINOR: ${{ steps.version.outputs.minor }}
+        run: |
+          set -euo pipefail
+
+          SOURCE="${REPO}:${VERSION}"
+          docker buildx imagetools create -t "${REPO}:${MAJOR}.${MINOR}" "$SOURCE"
+          docker buildx imagetools create -t "${REPO}:${MAJOR}" "$SOURCE"
+          docker buildx imagetools create -t "${REPO}:latest" "$SOURCE"
+
+      - name: Verify Docker Hub semver tags
+        if: ${{ steps.images.outputs.dockerhub_enabled == 'true' }}
+        env:
+          REPO: ${{ steps.images.outputs.dockerhub }}
+          VERSION: ${{ steps.version.outputs.version }}
+          MAJOR: ${{ steps.version.outputs.major }}
+          MINOR: ${{ steps.version.outputs.minor }}
+        run: |
+          set -euo pipefail
+
+          REPO_PATH="${REPO%/*}/${REPO#*/}"
+          REQUIRED_TAGS=("$VERSION" "$MAJOR.$MINOR" "$MAJOR" "latest")
+
+          for attempt in 1 2 3 4 5 6; do
+            TAGS_JSON="$(curl -fsSL "https://hub.docker.com/v2/repositories/${REPO_PATH}/tags?page_size=100")"
+            missing=0
+
+            for tag in "${REQUIRED_TAGS[@]}"; do
+              if ! echo "$TAGS_JSON" | grep -q "\"name\":\"${tag}\""; then
+                echo "Attempt ${attempt}: missing Docker Hub tag: ${tag}"
+                missing=1
+              fi
+            done
+
+            if [ "$missing" -eq 0 ]; then
+              echo "Verified Docker Hub tags: $VERSION, $MAJOR.$MINOR, $MAJOR, latest"
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Docker Hub semver tag verification failed after retries."
+          exit 1
 
   release:
     needs: publish-images
