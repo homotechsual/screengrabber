@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
 
@@ -45,12 +46,10 @@ jobs:
           if-no-files-found: error
 
       - name: Upload coverage to Codecov
-        if: ${{ always() && env.CODECOV_TOKEN != '' }}
+        if: ${{ always() }}
         uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          token: ${{ env.CODECOV_TOKEN }}
+          use_oidc: true
           files: TestResults/**/coverage.cobertura.xml
           flags: unittests
           fail_ci_if_error: true
