@@ -19,14 +19,11 @@ builder.Services.AddHostedService(
 var app = builder.Build();
 
 // API key middleware
-var apiKeys = (builder.Configuration["API_KEYS"] ?? "")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    .ToHashSet();
+var apiKeys = ApiKeyAuth.ParseConfiguredKeys(builder.Configuration["API_KEYS"]);
 
 app.Use(async (context, next) =>
 {
-    var key = context.Request.Headers["X-Api-Key"].ToString();
-    if (!ApiKeyMiddleware.IsAuthorized(string.IsNullOrEmpty(key) ? null : key, apiKeys))
+    if (!ApiKeyAuth.IsRequestAuthorized(context, apiKeys))
     {
         context.Response.StatusCode = 401;
         return;

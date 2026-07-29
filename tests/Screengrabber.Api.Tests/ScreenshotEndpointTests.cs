@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Playwright;
 using NSubstitute;
 using Screengrabber.Api;
 using SkiaSharp;
@@ -195,6 +196,51 @@ public class ScreenshotEndpointTests
         Assert.Equal(200, status);
         Assert.Equal("image/png", contentType);
         Assert.Equal(bytes, body);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenCaptureTimesOut_Returns504()
+    {
+        var context = CreateContext("/https%3A%2F%2Fexample.com%2F");
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+
+        cache.GetAsync("/https%3A%2F%2Fexample.com%2F").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>())
+            .Returns(Task.FromException<byte[]>(new PlaywrightException("navigation timeout")));
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, _, _) = await ExecuteAsync(result);
+        Assert.Equal(504, status);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenCaptureGetsInvalidUrl_Returns400()
+    {
+        var context = CreateContext("/https%3A%2F%2Fexample.com%2F");
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+
+        cache.GetAsync("/https%3A%2F%2Fexample.com%2F").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>())
+            .Returns(Task.FromException<byte[]>(new PlaywrightException("invalid url")));
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, _, body) = await ExecuteAsync(result);
+        Assert.Equal(400, status);
+        Assert.Contains("Invalid URL", System.Text.Encoding.UTF8.GetString(body));
     }
 
     private static IConfiguration BuildConfig(int ttlHours = 24)
