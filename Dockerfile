@@ -9,8 +9,8 @@ RUN dotnet publish src/Screengrabber.Api/Screengrabber.Api.csproj \
     -o /publish
 
 # Runtime stage — use the Playwright base image with browser dependencies pre-installed.
-# This avoids carrying the vulnerable .NET runtime layer from the dotnet-specific Playwright image.
-FROM mcr.microsoft.com/playwright:v1.54.0-noble AS final
+# This keeps the runtime aligned with the current Playwright/Node/browser stack.
+FROM mcr.microsoft.com/playwright:v1.62.0-noble AS final
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,7 +24,6 @@ RUN apt-get update && \
         > /etc/apt/sources.list.d/microsoft-edge.list' && \
     apt-get update && \
     apt-get install -y --no-install-recommends microsoft-edge-stable && \
-    apt-get purge -y --auto-remove nodejs npm gstreamer1.0-libav gstreamer1.0-plugins-bad libgstreamer-plugins-bad1.0-0 || true && \
     apt-get upgrade -y && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
