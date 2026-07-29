@@ -72,7 +72,7 @@ jobs:
           target: final
           push: true
           tags: |
-            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:edge
             ${{ steps.image.outputs.name }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -93,7 +93,7 @@ jobs:
           target: final
           push: true
           tags: |
-            ${{ steps.dockerhub.outputs.name }}:latest
+            ${{ steps.dockerhub.outputs.name }}:edge
             ${{ steps.dockerhub.outputs.name }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -114,9 +114,9 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
-            echo "image_tag=${DOCKERHUB_USERNAME}/screengrabber:latest" >> "$GITHUB_OUTPUT"
+            echo "image_tag=${DOCKERHUB_USERNAME}/screengrabber:edge" >> "$GITHUB_OUTPUT"
           else
-            echo "image_tag=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):latest" >> "$GITHUB_OUTPUT"
+            echo "image_tag=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]'):edge" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up SSH

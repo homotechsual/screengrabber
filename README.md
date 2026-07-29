@@ -28,3 +28,5 @@ Code coverage is collected in GitHub Actions and uploaded to Codecov when the `C
 ## Container publishing
 
 The GitHub Actions workflow publishes the image to GitHub Container Registry by default. It can also publish to Docker Hub when the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are configured. The Docker Hub image name defaults to `screengrabber` under the configured Docker Hub username.
+
+Main-branch deploy publishes the pre-release `edge` tag (plus commit SHA tags). Versioned releases publish numbered semver tags and `latest`.
