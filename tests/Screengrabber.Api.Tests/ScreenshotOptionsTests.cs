@@ -21,6 +21,16 @@ public class ScreenshotOptionsTests
     }
 
     [Fact]
+    public void Parse_EmptyPath_UsesEmptyTargetUrl()
+    {
+        var opts = ScreenshotOptions.Parse("/", null);
+
+        Assert.Equal(string.Empty, opts.TargetUrl);
+        Assert.Equal(ScreenshotSize.Small, opts.Size);
+        Assert.Equal(WaitLevel.Load, opts.WaitLevel);
+    }
+
+    [Fact]
     public void Parse_SizeSegment_SetsSize()
     {
         Assert.Equal(ScreenshotSize.Small,     ScreenshotOptions.Parse("/u/small/", null).Size);
@@ -118,6 +128,13 @@ public class ScreenshotOptionsTests
     {
         var opts = ScreenshotOptions.Parse("/u/small/1:1/smaller/", null);
         Assert.Equal(0.71, opts.GetDeviceScaleFactor(), 2);
+    }
+
+    [Fact]
+    public void GetDeviceScaleFactor_Normal_Is1Point0()
+    {
+        var opts = ScreenshotOptions.Parse("/u/small/1:1/", null);
+        Assert.Equal(1.0, opts.GetDeviceScaleFactor(), 2);
     }
 
     [Fact]

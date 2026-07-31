@@ -86,6 +86,52 @@ public class ScreenshotEndpointTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithoutRawTargetFeature_FallsBackToRequestPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/https%3A%2F%2Fexample.com%2F";
+        context.Response.Body = new MemoryStream();
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var bytes = CreatePng(6, 6);
+
+        cache.GetAsync("/https%3A%2F%2Fexample.com%2F").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/png", contentType);
+        Assert.Equal(bytes, body);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithoutRawTargetOrPath_FallsBackToSlashAndReturnsBadRequest()
+    {
+        var context = new DefaultHttpContext();
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            Substitute.For<IScreenshotService>(),
+            Substitute.For<ICacheService>(),
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, _, body) = await ExecuteAsync(result);
+
+        Assert.Equal(400, status);
+        Assert.Contains("A URL is required", System.Text.Encoding.UTF8.GetString(body));
+    }
+
+    [Fact]
     public async Task HandleAsync_JpegQuery_UsesJpegCacheKeyAndContentType()
     {
         var context = CreateContext("/https%3A%2F%2Fexample.com%2F");
@@ -117,6 +163,33 @@ public class ScreenshotEndpointTests
     }
 
     [Fact]
+    public async Task HandleAsync_WhenRawTargetContainsQuery_StripsItBeforeParsing()
+    {
+        var context = CreateContext("/https%3A%2F%2Fexample.com%2F?format=jpeg");
+        context.Request.QueryString = new QueryString("?format=jpeg");
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var bytes = CreateJpeg(4, 4);
+
+        cache.GetAsync("/https%3A%2F%2Fexample.com%2F?format=jpeg").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/jpeg", contentType);
+        Assert.Equal(bytes, body);
+    }
+
+    [Fact]
     public async Task HandleAsync_WhenWidthProvided_ResizesImage()
     {
         var context = CreateContext("/https%3A%2F%2Fexample.com%2F/_width:20/");
@@ -138,6 +211,36 @@ public class ScreenshotEndpointTests
 
         Assert.Equal(200, status);
         Assert.Equal("image/png", contentType);
+
+        using var decoded = SKBitmap.Decode(body);
+        Assert.Equal(20, decoded.Width);
+        Assert.Equal(10, decoded.Height);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenWidthProvidedForJpeg_ResizesAndReturnsJpeg()
+    {
+        var context = CreateContext("/https%3A%2F%2Fexample.com%2F/_width:20/");
+        context.Request.QueryString = new QueryString("?format=jpeg");
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var original = CreateJpeg(100, 50);
+
+        cache.GetAsync("/https%3A%2F%2Fexample.com%2F/_width:20/?format=jpeg").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(original);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/jpeg", contentType);
 
         using var decoded = SKBitmap.Decode(body);
         Assert.Equal(20, decoded.Width);

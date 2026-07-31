@@ -11,6 +11,23 @@ namespace Screengrabber.Api.Tests;
 public class ScreenshotServiceTests
 {
     [Fact]
+    public async Task PlaywrightFactory_CreateAsync_UsesConfiguredDelegate()
+    {
+        var expected = Substitute.For<IPlaywright>();
+        var calls = 0;
+        var factory = new PlaywrightFactory(() =>
+        {
+            calls++;
+            return Task.FromResult(expected);
+        });
+
+        var result = await factory.CreateAsync();
+
+        Assert.Same(expected, result);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
     public async Task StartAsync_LaunchesBrowserAndLogsStartupMessages()
     {
         var logger = Substitute.For<ILogger<ScreenshotService>>();
@@ -90,6 +107,43 @@ public class ScreenshotServiceTests
 
         await browser.Received(1).CloseAsync();
         playwright.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task StopAsync_WhenPlaywrightIsNull_DoesNotThrow()
+    {
+        var service = CreateService();
+        var browser = Substitute.For<IBrowser>();
+
+        SetPrivateField(service, "_browser", browser);
+
+        await service.StopAsync(CancellationToken.None);
+
+        await browser.Received(1).CloseAsync();
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WithJpegFormat_UsesJpegScreenshotType()
+    {
+        var service = CreateService();
+        var browser = Substitute.For<IBrowser>();
+        var context = Substitute.For<IBrowserContext>();
+        var page = Substitute.For<IPage>();
+        var expected = new byte[] { 9, 9, 9 };
+
+        browser.NewContextAsync(Arg.Any<BrowserNewContextOptions>()).Returns(context);
+        context.NewPageAsync().Returns(page);
+        page.GotoAsync(Arg.Any<string>(), Arg.Any<PageGotoOptions>()).Returns(Task.FromResult<IResponse?>(null));
+        page.ScreenshotAsync(Arg.Any<PageScreenshotOptions>()).Returns(expected);
+
+        SetPrivateField(service, "_browser", browser);
+
+        var result = await service.CaptureAsync(
+            ScreenshotOptions.Parse("/https%3A%2F%2Fexample.com%2F", "jpeg"));
+
+        Assert.Equal(expected, result);
+        await page.Received(1).ScreenshotAsync(Arg.Is<PageScreenshotOptions>(opts =>
+            opts.Type == ScreenshotType.Jpeg && opts.FullPage == false));
     }
 
     private static ScreenshotService CreateService()

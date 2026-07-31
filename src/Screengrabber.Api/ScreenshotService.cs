@@ -9,7 +9,14 @@ public interface IPlaywrightFactory
 
 public sealed class PlaywrightFactory : IPlaywrightFactory
 {
-    public Task<IPlaywright> CreateAsync() => Playwright.CreateAsync();
+    private readonly Func<Task<IPlaywright>> _createAsync;
+
+    public PlaywrightFactory(Func<Task<IPlaywright>>? createAsync = null)
+    {
+        _createAsync = createAsync ?? Playwright.CreateAsync;
+    }
+
+    public Task<IPlaywright> CreateAsync() => _createAsync();
 }
 
 public interface IScreenshotService
