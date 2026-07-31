@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout screengrabber
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Clone and update homotechsualdocs
         env:
