@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Playwright;
 using NSubstitute;
@@ -9,6 +10,30 @@ namespace Screengrabber.Api.Tests;
 
 public class ScreenshotServiceTests
 {
+    [Fact]
+    public async Task StartAsync_LaunchesBrowserAndLogsStartupMessages()
+    {
+        var logger = Substitute.For<ILogger<ScreenshotService>>();
+        var service = CreateService(logger);
+        var playwrightFactory = Substitute.For<IPlaywrightFactory>();
+        var playwright = Substitute.For<IPlaywright>();
+        var browserType = Substitute.For<IBrowserType>();
+        var browser = Substitute.For<IBrowser>();
+
+        playwrightFactory.CreateAsync().Returns(playwright);
+        playwright.Chromium.Returns(browserType);
+        browserType.LaunchAsync(Arg.Any<BrowserTypeLaunchOptions>()).Returns(browser);
+
+        SetPrivateField(service, "_playwrightFactory", playwrightFactory);
+
+        await service.StartAsync(CancellationToken.None);
+
+        await playwrightFactory.Received(1).CreateAsync();
+        await browserType.Received(1).LaunchAsync(Arg.Any<BrowserTypeLaunchOptions>());
+        ReceivedLoggerMessage(logger, "Launching Edge browser via Playwright...");
+        ReceivedLoggerMessage(logger, "Browser ready.");
+    }
+
     [Fact]
     public async Task CaptureAsync_WhenBrowserIsNotReady_Throws()
     {
@@ -68,6 +93,9 @@ public class ScreenshotServiceTests
     }
 
     private static ScreenshotService CreateService()
+        => CreateService(NullLogger<ScreenshotService>.Instance);
+
+    private static ScreenshotService CreateService(ILogger<ScreenshotService> logger)
         => new(
             new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -75,7 +103,8 @@ public class ScreenshotServiceTests
                     ["SCREENSHOT_CONCURRENCY"] = "2"
                 })
                 .Build(),
-            NullLogger<ScreenshotService>.Instance);
+            logger,
+            Substitute.For<IPlaywrightFactory>());
 
     private static ScreenshotOptions CreateOptions()
         => ScreenshotOptions.Parse("/https%3A%2F%2Fexample.com%2F", null);
@@ -86,4 +115,17 @@ public class ScreenshotServiceTests
         Assert.NotNull(field);
         field!.SetValue(instance, value);
     }
+
+    private static void ReceivedLoggerMessage(ILogger<ScreenshotService> logger, string message)
+    {
+        logger.Received(1).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(state => IsExpectedLogMessage(state, message)),
+            null,
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    private static bool IsExpectedLogMessage(object state, string message)
+        => state.ToString() == message;
 }

@@ -10,6 +10,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 builder.Services.AddSingleton<ICacheService, CacheService>();
 
 // Playwright / screenshot service
+builder.Services.AddSingleton<IPlaywrightFactory, PlaywrightFactory>();
 builder.Services.AddSingleton<ScreenshotService>();
 builder.Services.AddSingleton<IScreenshotService>(
     sp => sp.GetRequiredService<ScreenshotService>());
@@ -35,3 +36,5 @@ app.Use(async (context, next) =>
 app.MapGet("/{**path}", ScreenshotEndpoint.HandleAsync);
 
 app.Run();
+
+public partial class Program { }

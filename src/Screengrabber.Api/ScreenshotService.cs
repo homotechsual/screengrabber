@@ -2,6 +2,16 @@ using Microsoft.Playwright;
 
 namespace Screengrabber.Api;
 
+public interface IPlaywrightFactory
+{
+    Task<IPlaywright> CreateAsync();
+}
+
+public sealed class PlaywrightFactory : IPlaywrightFactory
+{
+    public Task<IPlaywright> CreateAsync() => Playwright.CreateAsync();
+}
+
 public interface IScreenshotService
 {
     Task<byte[]> CaptureAsync(ScreenshotOptions options);
@@ -13,18 +23,20 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
     private IBrowser?    _browser;
     private readonly SemaphoreSlim _semaphore;
     private readonly ILogger<ScreenshotService> _logger;
+    private readonly IPlaywrightFactory _playwrightFactory;
 
-    public ScreenshotService(IConfiguration config, ILogger<ScreenshotService> logger)
+    public ScreenshotService(IConfiguration config, ILogger<ScreenshotService> logger, IPlaywrightFactory playwrightFactory)
     {
         var concurrency = config.GetValue("SCREENSHOT_CONCURRENCY", 4);
         _semaphore = new SemaphoreSlim(concurrency, concurrency);
         _logger    = logger;
+        _playwrightFactory = playwrightFactory;
     }
 
     public override async Task StartAsync(CancellationToken ct)
     {
         _logger.LogInformation("Launching Edge browser via Playwright...");
-        _playwright = await Playwright.CreateAsync();
+        _playwright = await _playwrightFactory.CreateAsync();
         _browser    = await _playwright.Chromium.LaunchAsync(new()
         {
             Channel = "msedge",
