@@ -89,14 +89,20 @@ public class ScreenshotEndpointTests
     public async Task HandleAsync_WithoutRawTargetFeature_FallsBackToRequestPath()
     {
         var context = new DefaultHttpContext();
-        context.Request.Path = "/https%3A%2F%2Fexample.com%2F";
+        context.Features.Set<IHttpRequestFeature>(new HttpRequestFeature
+        {
+            RawTarget = null,
+            Path = "/http/small",
+            QueryString = string.Empty
+        });
+        context.Request.Path = "/http/small";
         context.Response.Body = new MemoryStream();
 
         var screenshot = Substitute.For<IScreenshotService>();
         var cache = Substitute.For<ICacheService>();
         var bytes = CreatePng(6, 6);
 
-        cache.GetAsync("/https%3A%2F%2Fexample.com%2F").Returns((byte[]?)null);
+        cache.GetAsync("/http/small").Returns((byte[]?)null);
         screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
 
         var result = await ScreenshotEndpoint.HandleAsync(
@@ -111,6 +117,8 @@ public class ScreenshotEndpointTests
         Assert.Equal(200, status);
         Assert.Equal("image/png", contentType);
         Assert.Equal(bytes, body);
+        await screenshot.Received(1).CaptureAsync(Arg.Is<ScreenshotOptions>(opts =>
+            opts.TargetUrl == "http" && opts.Size == ScreenshotSize.Small));
     }
 
     [Fact]
