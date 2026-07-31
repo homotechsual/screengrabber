@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -18,15 +20,11 @@ public class ProgramTests
     public async Task Program_WithValidApiKey_CanReachScreenshotRoute()
     {
         await using var factory = CreateFactory();
-        var client = factory.CreateClient();
-
-        client.DefaultRequestHeaders.Add("X-Api-Key", "test-key");
-
-        var response = await client.GetAsync(ValidRequestPath);
+        var response = await SendAsync(factory, "test-key");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("image/png", response.Content.Headers.ContentType?.MediaType);
-        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.Equal("image/png", response.ContentType);
+        var bytes = response.Body;
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes);
     }
 
@@ -34,11 +32,7 @@ public class ProgramTests
     public async Task Program_WithInvalidApiKey_ReturnsUnauthorized()
     {
         await using var factory = CreateFactory();
-        var client = factory.CreateClient();
-
-        client.DefaultRequestHeaders.Add("X-Api-Key", "wrong-key");
-
-        var response = await client.GetAsync(ValidRequestPath);
+        var response = await SendAsync(factory, "wrong-key");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -47,15 +41,41 @@ public class ProgramTests
     public async Task Program_WithMissingApiKey_ReturnsUnauthorized()
     {
         await using var factory = CreateFactory();
-        var client = factory.CreateClient();
-
-        var response = await client.GetAsync(ValidRequestPath);
+        var response = await SendAsync(factory, null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     private static WebApplicationFactory<Program> CreateFactory()
         => new TestApplicationFactory();
+
+    private static async Task<(HttpStatusCode StatusCode, string? ContentType, byte[] Body)> SendAsync(
+        WebApplicationFactory<Program> factory,
+        string? apiKey)
+    {
+        var responseBody = new MemoryStream();
+
+        var context = await factory.Server.SendAsync(requestContext =>
+        {
+            requestContext.Request.Method = "GET";
+            requestContext.Request.Path = ValidRequestPath;
+            requestContext.Response.Body = responseBody;
+
+            if (apiKey is not null)
+                requestContext.Request.Headers["X-Api-Key"] = apiKey;
+
+            var requestFeature = requestContext.Features.Get<IHttpRequestFeature>();
+            if (requestFeature is not null)
+            {
+                requestFeature.Method = "GET";
+                requestFeature.Path = ValidRequestPath;
+                requestFeature.RawTarget = ValidRequestPath;
+            }
+        });
+
+        responseBody.Position = 0;
+        return ((HttpStatusCode)context.Response.StatusCode, context.Response.ContentType, responseBody.ToArray());
+    }
 
     private sealed class TestApplicationFactory : WebApplicationFactory<Program>
     {
