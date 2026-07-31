@@ -68,6 +68,7 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
             throw new InvalidOperationException("Browser is not ready.");
 
         await _semaphore.WaitAsync();
+        byte[] screenshot;
         try
         {
             var (width, height) = options.GetViewport();
@@ -86,7 +87,7 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
                 WaitUntil = options.ToPlaywrightWaitUntil()
             });
 
-            return await page.ScreenshotAsync(new()
+            screenshot = await page.ScreenshotAsync(new()
             {
                 Type     = options.Format == ImageFormat.Jpeg ? ScreenshotType.Jpeg : ScreenshotType.Png,
                 FullPage = false
@@ -96,5 +97,7 @@ public sealed class ScreenshotService : BackgroundService, IScreenshotService
         {
             _semaphore.Release();
         }
+
+        return screenshot;
     }
 }

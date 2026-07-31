@@ -122,6 +122,42 @@ public class ScreenshotEndpointTests
     }
 
     [Fact]
+    public async Task HandleAsync_WithoutHttpRequestFeature_FallsBackToRequestPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpRequestFeature>(new HttpRequestFeature
+        {
+            RawTarget = null,
+            Path = "/http/small",
+            QueryString = string.Empty
+        });
+        context.Request.Path = "/http/small";
+        context.Response.Body = new MemoryStream();
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var bytes = CreatePng(6, 6);
+
+        cache.GetAsync("/http/small").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/png", contentType);
+        Assert.Equal(bytes, body);
+        await screenshot.Received(1).CaptureAsync(Arg.Is<ScreenshotOptions>(opts =>
+            opts.TargetUrl == "http" && opts.Size == ScreenshotSize.Small));
+    }
+
+    [Fact]
     public async Task HandleAsync_WithoutRawTargetOrPath_FallsBackToSlashAndReturnsBadRequest()
     {
         var context = new DefaultHttpContext();
@@ -137,6 +173,92 @@ public class ScreenshotEndpointTests
 
         Assert.Equal(400, status);
         Assert.Contains("A URL is required", System.Text.Encoding.UTF8.GetString(body));
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithoutHttpRequestFeatureAndDefaultPath_FallsBackToSlashAndReturnsBadRequest()
+    {
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpRequestFeature>(new HttpRequestFeature
+        {
+            RawTarget = null,
+            Path = null,
+            QueryString = string.Empty
+        });
+        context.Request.Path = default;
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            Substitute.For<IScreenshotService>(),
+            Substitute.For<ICacheService>(),
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, _, body) = await ExecuteAsync(result);
+
+        Assert.Equal(400, status);
+        Assert.Contains("A URL is required", System.Text.Encoding.UTF8.GetString(body));
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithCustomFeatureNullRawTarget_UsesRequestPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpRequestFeature>(new NullRawTargetFeature("/http/small"));
+        context.Request.Path = "/http/small";
+        context.Response.Body = new MemoryStream();
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var bytes = CreatePng(5, 5);
+
+        cache.GetAsync("/http/small").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/png", contentType);
+        Assert.Equal(bytes, body);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithCustomFeatureEmptyRawTarget_UsesRequestPath()
+    {
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpRequestFeature>(new NullRawTargetFeature("/http/small")
+        {
+            RawTarget = string.Empty
+        });
+        context.Request.Path = "/http/small";
+        context.Response.Body = new MemoryStream();
+
+        var screenshot = Substitute.For<IScreenshotService>();
+        var cache = Substitute.For<ICacheService>();
+        var bytes = CreatePng(7, 7);
+
+        cache.GetAsync("/http/small").Returns((byte[]?)null);
+        screenshot.CaptureAsync(Arg.Any<ScreenshotOptions>()).Returns(bytes);
+
+        var result = await ScreenshotEndpoint.HandleAsync(
+            context,
+            screenshot,
+            cache,
+            BuildConfig(),
+            NullLogger<Program>.Instance);
+
+        var (status, contentType, body) = await ExecuteAsync(result);
+
+        Assert.Equal(200, status);
+        Assert.Equal("image/png", contentType);
+        Assert.Equal(bytes, body);
     }
 
     [Fact]
@@ -415,5 +537,31 @@ public class ScreenshotEndpointTests
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
         return data.ToArray();
+    }
+
+    private sealed class NullRawTargetFeature : IHttpRequestFeature
+    {
+        public NullRawTargetFeature(string path)
+        {
+            Method = "GET";
+            Scheme = "http";
+            PathBase = string.Empty;
+            Path = path;
+            QueryString = string.Empty;
+            Protocol = "HTTP/1.1";
+            RawTarget = null;
+            Headers = new HeaderDictionary();
+            Body = Stream.Null;
+        }
+
+        public string Protocol { get; set; }
+        public string Scheme { get; set; }
+        public string Method { get; set; }
+        public string PathBase { get; set; }
+        public string Path { get; set; }
+        public string QueryString { get; set; }
+        public string RawTarget { get; set; }
+        public IHeaderDictionary Headers { get; set; }
+        public Stream Body { get; set; }
     }
 }

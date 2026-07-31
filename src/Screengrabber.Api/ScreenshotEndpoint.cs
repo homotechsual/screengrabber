@@ -14,9 +14,14 @@ public static class ScreenshotEndpoint
         ILogger<Program> logger)
     {
         // Use raw target to preserve %2F in the encoded URL segment
-        var rawTarget = context.Features.Get<IHttpRequestFeature>()?.RawTarget
-                        ?? context.Request.Path.Value
-                        ?? "/";
+        string? rawTarget;
+        var requestFeature = context.Features.Get<IHttpRequestFeature>()!;
+        if (!string.IsNullOrEmpty(requestFeature.RawTarget))
+            rawTarget = requestFeature.RawTarget;
+        else if (!string.IsNullOrEmpty(requestFeature.Path))
+            rawTarget = requestFeature.Path;
+        else
+            rawTarget = "/";
 
         var rawPath = rawTarget.Contains('?')
             ? rawTarget[..rawTarget.IndexOf('?')]

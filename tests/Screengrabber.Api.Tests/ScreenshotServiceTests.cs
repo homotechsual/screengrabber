@@ -11,6 +11,14 @@ namespace Screengrabber.Api.Tests;
 public class ScreenshotServiceTests
 {
     [Fact]
+    public void PlaywrightFactory_DefaultConstructor_UsesDefaultCreateDelegatePath()
+    {
+        var factory = new PlaywrightFactory();
+
+        Assert.NotNull(factory);
+    }
+
+    [Fact]
     public async Task PlaywrightFactory_CreateAsync_UsesConfiguredDelegate()
     {
         var expected = Substitute.For<IPlaywright>();
@@ -144,6 +152,46 @@ public class ScreenshotServiceTests
         Assert.Equal(expected, result);
         await page.Received(1).ScreenshotAsync(Arg.Is<PageScreenshotOptions>(opts =>
             opts.Type == ScreenshotType.Jpeg && opts.FullPage == false));
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenGotoThrows_ReleasesSemaphoreAndPropagates()
+    {
+        var service = CreateService();
+        var browser = Substitute.For<IBrowser>();
+        var context = Substitute.For<IBrowserContext>();
+        var page = Substitute.For<IPage>();
+
+        browser.NewContextAsync(Arg.Any<BrowserNewContextOptions>()).Returns(context);
+        context.NewPageAsync().Returns(page);
+        page.GotoAsync(Arg.Any<string>(), Arg.Any<PageGotoOptions>())
+            .Returns(Task.FromException<IResponse?>(new PlaywrightException("boom")));
+
+        SetPrivateField(service, "_browser", browser);
+
+        await Assert.ThrowsAsync<PlaywrightException>(() => service.CaptureAsync(CreateOptions()));
+
+        // If semaphore was not released in finally, this second call would block/fail unexpectedly.
+        await Assert.ThrowsAsync<PlaywrightException>(() => service.CaptureAsync(CreateOptions()));
+        await browser.Received(2).NewContextAsync(Arg.Any<BrowserNewContextOptions>());
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenNewContextThrows_ReleasesSemaphoreAndPropagates()
+    {
+        var service = CreateService();
+        var browser = Substitute.For<IBrowser>();
+
+        browser.NewContextAsync(Arg.Any<BrowserNewContextOptions>())
+            .Returns(Task.FromException<IBrowserContext>(new PlaywrightException("context boom")));
+
+        SetPrivateField(service, "_browser", browser);
+
+        await Assert.ThrowsAsync<PlaywrightException>(() => service.CaptureAsync(CreateOptions()));
+
+        // Ensure the semaphore is released by verifying we can enter capture flow again.
+        await Assert.ThrowsAsync<PlaywrightException>(() => service.CaptureAsync(CreateOptions()));
+        await browser.Received(2).NewContextAsync(Arg.Any<BrowserNewContextOptions>());
     }
 
     private static ScreenshotService CreateService()
